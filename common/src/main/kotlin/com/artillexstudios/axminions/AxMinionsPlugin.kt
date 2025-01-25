@@ -36,6 +36,7 @@ import com.artillexstudios.axminions.minions.miniontype.SlayerMinionType
 import java.io.File
 import com.artillexstudios.axapi.libs.libby.BukkitLibraryManager
 import com.artillexstudios.axapi.libs.libby.Library
+import com.artillexstudios.axapi.metrics.AxMetrics
 import com.artillexstudios.axminions.minions.miniontype.CrafterMinionType
 import org.bstats.bukkit.Metrics
 import org.bukkit.Bukkit
@@ -74,7 +75,7 @@ class AxMinionsPlugin : AxPlugin() {
 
     override fun enable() {
         Metrics(this, 19043)
-        com.artillexstudios.axapi.metrics.AxMetrics(5).start()
+        AxMetrics(5).start()
 
         AxMinionsPlugin.config = Config(File(dataFolder, "config.yml"), getResource("config.yml")!!)
         messages = Messages(File(dataFolder, "messages.yml"), getResource("messages.yml")!!)

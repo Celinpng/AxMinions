@@ -19,6 +19,7 @@ tool:
 # If set to asphere: checks blocks in a sphere with the range of the minion as the radius, around the minion
 # Only switch to asphere mode, if you know what you're doing,
 # as it may cause some issues due to states being concurrently modified!
+#square, cube, tunnel, deep
 mode: line
 
 # Can be generator or whitelist

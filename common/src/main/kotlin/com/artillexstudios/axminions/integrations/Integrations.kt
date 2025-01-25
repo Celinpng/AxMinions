@@ -14,7 +14,7 @@ import com.artillexstudios.axminions.integrations.prices.CMIIntegration
 import com.artillexstudios.axminions.integrations.prices.EconomyShopGUIIntegration
 import com.artillexstudios.axminions.integrations.prices.EssentialsIntegration
 import com.artillexstudios.axminions.integrations.prices.ShopGUIPlusIntegration
-//import com.artillexstudios.axminions.integrations.prices.ZShopIntegration
+import com.artillexstudios.axminions.integrations.prices.ZShopIntegration
 import com.artillexstudios.axminions.integrations.protection.BentoBoxIntegration
 import com.artillexstudios.axminions.integrations.protection.GriefPreventionIntegration
 import com.artillexstudios.axminions.integrations.protection.IridiumSkyBlockIntegration
@@ -108,11 +108,15 @@ class Integrations : Integrations {
                         .sendMessage(StringUtils.formatToString("<#33FF33>[AxMinions] Hooked into EconomyShopGUI!"))}
             }
 
-//            "zshop" -> {
-//                if (isPluginLoaded("zShop")) {
-//                    register(ZShopIntegration())
-//                }
-//            }
+            "zshop" -> {
+                if (isPluginLoaded("zShop")) {
+                    register(ZShopIntegration())
+                } else {
+                    Bukkit.getConsoleSender().sendMessage(
+                        StringUtils.formatToString("<#FF0000>[AxMinions] O plugin zShop não foi encontrado! A integração não será habilitada.")
+                    )
+                }
+            }
         }
 
         when (Config.ECONOMY_HOOK().lowercase(Locale.ENGLISH)) {
@@ -202,6 +206,8 @@ class Integrations : Integrations {
             PlaceholderAPIIntegration().register()
         }
     }
+
+
 
     override fun register(integration: Integration) {
         when (integration) {

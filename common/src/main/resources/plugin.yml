@@ -6,6 +6,7 @@ folia-supported: true
 softdepend:
   - RoseStacker
   - WildStacker
+  - zShop
   - CMI
   - Vault
   - EconomyShopGUI
@@ -22,5 +23,4 @@ softdepend:
   - KGenerators
   - Towny
   - ItemsAdder
-  - zShop
   - PlaceholderAPI

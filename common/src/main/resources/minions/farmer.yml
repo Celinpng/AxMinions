@@ -12,11 +12,13 @@ tool:
     - "DIAMOND_HOE"
     - "NETHERITE_HOE"
 
-# Can be: sphere, line, face
-# If set to sphere: checks blocks in a sphere with the range of the minion as radius (Most resource intensive, the larger the radius, the worse)
-# If set to line: checks blocks in all 4 directions from the minion in the range of the minion (Best performance to blocks farmed ratio)
+# Can be: face, sphere, cube
+# If set to square: All blocks around of the minion in the same YLevel
 # If set to face: checks blocks only in the facing of the minion (Least resource intensive)
-mode: sphere
+# If set to sphere: checks blocks in a sphere with the range of the minion as radius (Most resource intensive, the larger the radius, the worse)
+# If set to cube: checks blocks only in a cube around minion (Least resource intensive)
+
+mode: square
 
 item:
   type: "player_head"

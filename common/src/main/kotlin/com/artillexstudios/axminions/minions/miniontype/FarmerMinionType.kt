@@ -11,17 +11,16 @@ import com.artillexstudios.axminions.api.warnings.Warnings
 import com.artillexstudios.axminions.minions.MinionTicker
 import dev.lone.itemsadder.api.CustomBlock
 import org.bukkit.Bukkit
-import org.bukkit.Location
 import kotlin.math.roundToInt
 import org.bukkit.Material
-import org.bukkit.block.Block
 import org.bukkit.block.BlockFace
-import org.bukkit.block.DoubleChest
 import org.bukkit.block.data.Ageable
+import org.bukkit.block.data.type.CaveVines
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.inventory.DoubleChestInventory
 import org.bukkit.inventory.ItemStack
 
+@Suppress("DUPLICATE_LABEL_IN_WHEN", "DuplicatedCode")
 class FarmerMinionType : MinionType("farmer", AxMinionsPlugin.INSTANCE.getResource("minions/farmer.yml")!!, true) {
 
     override fun shouldRun(minion: Minion): Boolean {
@@ -75,17 +74,21 @@ class FarmerMinionType : MinionType("farmer", AxMinionsPlugin.INSTANCE.getResour
         var size = 0
         val drops = arrayListOf<ItemStack>()
         val blocks = when (getConfig().getString("mode")) {
+
+
             "face" -> {
                 LocationUtils.getAllBlocksFacing(minion.getLocation(), minion.getRange(), minion.getDirection().facing)
             }
-            "line" -> {
-                val list = arrayListOf<Location>()
-                faces.fastFor {
-                    list.addAll(LocationUtils.getAllBlocksFacing(minion.getLocation(), minion.getRange(), minion.getDirection().facing))
-                }
-                list
+
+            "sphere" -> {
+                LocationUtils.getAllBlocksInRadius(minion.getLocation(), minion.getRange(), false)
             }
-            else -> LocationUtils.getAllBlocksInRadius(minion.getLocation(), minion.getRange(), false)
+
+            "cube" -> {
+                LocationUtils.getAllBlocksInCube(minion.getLocation(), minion.getRange(), false)
+            }
+
+            else ->  LocationUtils.getAllBlocksInSquare(minion.getLocation(), minion.getRange(), false)
         }
 
         blocks.fastFor { location ->
@@ -107,18 +110,29 @@ class FarmerMinionType : MinionType("farmer", AxMinionsPlugin.INSTANCE.getResour
 
             when (block.type) {
                 Material.CACTUS, Material.SUGAR_CANE, Material.BAMBOO -> {
+                    // Checa o bloco acima do bloco atual
+                    val aboveBlock = block.getRelative(BlockFace.UP)
+                    if (aboveBlock.type != block.type) return@fastFor // Só colhe se existir um bloco do mesmo tipo acima
+
                     val preHarvestEvent = PreFarmerMinionHarvestEvent(minion, block)
                     Bukkit.getPluginManager().callEvent(preHarvestEvent)
                     if (preHarvestEvent.isCancelled) return@fastFor
-                    MinionUtils.getPlant(block).fastFor {
-                        val blockDrops = it.getDrops(minion.getTool())
+
+                    // Coleta apenas os blocos acima (mantendo o bloco base intacto)
+                    MinionUtils.getPlant(block).fastFor { targetBlock ->
+                        if (targetBlock == block) return@fastFor // Ignora o bloco base
+                        val blockDrops = targetBlock.getDrops(minion.getTool())
                         size++
                         drops.addAll(blockDrops)
-                        it.type = Material.AIR
+                        targetBlock.type = Material.AIR // Remove os blocos colhidos (acima do bloco base)
+                    }
+
+                    if (block.type == Material.BAMBOO) {
+                        block.type = Material.BAMBOO_SAPLING // Altera o tipo do bloco base
                     }
                 }
 
-                Material.MELON, Material.PUMPKIN, Material.TORCHFLOWER -> {
+                Material.MELON, Material.PUMPKIN -> {
                     val preHarvestEvent = PreFarmerMinionHarvestEvent(minion, block)
                     Bukkit.getPluginManager().callEvent(preHarvestEvent)
                     if (preHarvestEvent.isCancelled) return@fastFor
@@ -128,7 +142,7 @@ class FarmerMinionType : MinionType("farmer", AxMinionsPlugin.INSTANCE.getResour
                     block.type = Material.AIR
                 }
 
-                Material.COCOA_BEANS, Material.COCOA, Material.NETHER_WART, Material.WHEAT, Material.CARROTS, Material.BEETROOTS, Material.POTATOES, Material.PITCHER_CROP -> {
+                Material.COCOA_BEANS, Material.COCOA, Material.NETHER_WART, Material.WHEAT, Material.CARROTS, Material.BEETROOTS, Material.POTATOES, Material.PITCHER_CROP, Material.CAVE_VINES -> {
                     val ageable = block.blockData as Ageable
                     if (ageable.age != ageable.maximumAge) return@fastFor
                     val preHarvestEvent = PreFarmerMinionHarvestEvent(minion, block)
@@ -139,6 +153,12 @@ class FarmerMinionType : MinionType("farmer", AxMinionsPlugin.INSTANCE.getResour
                     drops.addAll(blockDrops)
                     ageable.age = 0
                     block.blockData = ageable
+
+                    // Checa o bloco acima
+                    val aboveBlock = block.getRelative(BlockFace.UP)
+                    if (aboveBlock.type == Material.PITCHER_CROP) {
+                        aboveBlock.type = Material.AIR // Remove o bloco acima se for Pitcher Crop
+                    }
                 }
 
                 Material.SWEET_BERRY_BUSH -> {
@@ -154,8 +174,29 @@ class FarmerMinionType : MinionType("farmer", AxMinionsPlugin.INSTANCE.getResour
                     block.blockData = ageable
                 }
 
+                Material.TORCHFLOWER -> {
+                    // Verificação inicial: Confirma se o bloco não é nulo (segurança extra)
+                    if (block.type != Material.TORCHFLOWER) return@fastFor
+                    // Dispara o evento de pré-colheita e verifica se foi cancelado
+                    val preHarvestEvent = PreFarmerMinionHarvestEvent(minion, block)
+                    Bukkit.getPluginManager().callEvent(preHarvestEvent)
+                    if (preHarvestEvent.isCancelled) return@fastFor
+                    // Coleta os drops da tocha-flor
+                    val blockDrops = block.getDrops(minion.getTool())
+                    // Incrementa contador e adiciona os drops coletados
+                    if (blockDrops.isNotEmpty()) {
+                        size++
+                        drops.addAll(blockDrops)
+                    }
+                    // Atualiza o estado do bloco para "TORCHFLOWER_CROP" (após a colheita)
+                    block.type = Material.TORCHFLOWER_CROP
+                }
+
+                //após 100% do plugin, voltar para as glowberries
+
                 else -> return@fastFor
             }
+
         }
 
         minion.addToContainerOrDrop(drops)

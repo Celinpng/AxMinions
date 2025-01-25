@@ -67,7 +67,8 @@ hooks:
   stacker: "none"
   # Supported economy providers: Vault, PlayerPoints, custom
   economy: "Vault"
-  # Supported prices providers: ShopGUIPlus, Essentials, EconomyShopGUI, CMI, custom
+  # Supported prices providers: ShopGUIPlus, Essentials, EconomyShopGUI, CMI, zShop, custom
+  #zShop is broken atm. do not use Seller
   prices: "ShopGUIPlus"
 
 charge:
