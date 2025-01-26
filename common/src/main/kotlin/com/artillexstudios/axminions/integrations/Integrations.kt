@@ -26,6 +26,7 @@ import com.artillexstudios.axminions.integrations.protection.WorldGuardIntegrati
 import com.artillexstudios.axminions.integrations.stacker.DefaultStackerIntegration
 import com.artillexstudios.axminions.integrations.stacker.RoseStackerIntegration
 import com.artillexstudios.axminions.integrations.stacker.WildStackerIntegration
+import com.artillexstudios.axminions.integrations.storage.AdvancedChestsIntegration
 import com.artillexstudios.axminions.listeners.SuperiorSkyBlock2Listener
 import java.util.Locale
 import org.bukkit.Bukkit
@@ -35,9 +36,11 @@ class Integrations : Integrations {
     private var pricesIntegration: PricesIntegration? = null
     private var economyIntegration: EconomyIntegration? = null
     private var islandIntegration: IslandIntegration? = null
+    private var storageIntegration: StorageIntegration? = null
     private val protectionIntegrations = com.artillexstudios.axminions.integrations.protection.ProtectionIntegrations()
     internal var kGeneratorsIntegration = false
     internal var itemsAdderIntegration = false
+
 
     override fun getStackerIntegration(): StackerIntegration {
         return stackerIntegration
@@ -55,9 +58,14 @@ class Integrations : Integrations {
         return islandIntegration
     }
 
+    override fun getStorageIntegration(): StorageIntegration? {
+        return storageIntegration
+    }
+
     override fun getProtectionIntegration(): ProtectionIntegrations {
         return protectionIntegrations
     }
+
 
     override fun reload() {
         when (Config.STACKER_HOOK().lowercase(Locale.ENGLISH)) {
@@ -192,10 +200,12 @@ class Integrations : Integrations {
                 .sendMessage(StringUtils.formatToString("<#33FF33>[AxMinions] Hooked into ItemsAdder!"))
         }
 
-        if (Bukkit.getPluginManager().getPlugin("ItemsAdder") != null) {
-            itemsAdderIntegration = true
-            Bukkit.getConsoleSender()
-                .sendMessage(StringUtils.formatToString("<#33FF33>[AxMinions] Hooked into ItemsAdder!"))
+        if (Bukkit.getPluginManager().getPlugin("AdvancedChests") != null) {
+            register(AdvancedChestsIntegration())
+
+            Bukkit.getConsoleSender().sendMessage(
+                StringUtils.formatToString("<#33FF33>[AxMinions] Hooked into AdvancedChests for storage integration!")
+            )
         }
 
         if (Bukkit.getPluginManager().getPlugin("Towny") != null) {
@@ -229,6 +239,10 @@ class Integrations : Integrations {
 
             is IslandIntegration -> {
                 islandIntegration = integration
+            }
+
+            is StorageIntegration -> {
+                storageIntegration = integration
             }
 
             else -> {

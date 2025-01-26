@@ -563,6 +563,8 @@ class Minion(
         }
     }
 
+
+
     override fun getLinkedChest(): Location? {
         return this.linkedChest
     }

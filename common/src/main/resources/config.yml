@@ -71,6 +71,7 @@ hooks:
   #zShop is broken atm. do not use Seller
   prices: "ShopGUIPlus"
 
+
 charge:
   enabled: false
   amount: 1800 # in seconds

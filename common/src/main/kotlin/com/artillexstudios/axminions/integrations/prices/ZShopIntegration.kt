@@ -14,9 +14,5 @@ class ZShopIntegration : PricesIntegration {
     }
 
     override fun register() {
-        val rsp = Bukkit.getServer().servicesManager.getRegistration(
-            ShopManager::class.java
-        )
-        shopManager = rsp!!.provider
     }
 }

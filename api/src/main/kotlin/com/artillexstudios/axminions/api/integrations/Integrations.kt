@@ -14,6 +14,8 @@ interface Integrations {
 
     fun getProtectionIntegration(): ProtectionIntegrations
 
+    fun getStorageIntegration(): StorageIntegration?
+
     fun reload()
 
     fun register(integration: Integration)
