@@ -34,6 +34,77 @@ item:
     - ""
     - "<#33FF33><b>(!)</b> Place the minion and give it a hoe!"
 
+#Eficiencia
+#Aqui você configura como cada level de efficiency vai interferir na colheita
+#Definindo como true irá ter o efeito, false voce desabilita esta função
+#Você pode adicionar níveis conforme o seu gosto, lembrando que os números são em porcentagem
+#isso significa que quando o minion colher o mesmo terá uma chance minima e máxima de incrementar em +X a idade da plantação, acelerando o seu tempo de maturação
+#Na configuração abaixo, "ages" significa o quanto você quer incrementar na maturação por "tick" de colheita
+#AVISO, USE PONTO PARA DEFINIR OS VALORES
+efficiency:
+  enabled: true
+  nivel:
+    1:
+      min: 6.32
+      max: 12.65
+      age: 1
+    2:
+      min: 8.41
+      max: 16.82
+      age: 1
+    3:
+      min: 11.19
+      max: 22.37
+      age: 1
+    4:
+      min: 14.88
+      max: 29.75
+      age: 1
+    5:
+      min: 19.79
+      max: 39.57
+      age: 1
+    6:
+      min: 26.32
+      max: 52.63
+      age: 1
+    7:
+      min: 35
+      max: 70
+      age: 2
+
+
+#Looting
+#Aqui você configura como cada level de Looting vai interferir na colheita
+#Definindo como true irá ter o efeito, false voce desabilita esta função
+#isso significa que quando o minion colher, ele terá uma chance minima e maxima de multiplicar a quantidade de drop
+#Na configuração, "multiplier" é a quantidade de vezes que o drop será multiplicado.
+#Considere sempre que é uma chance de ser multiplicado
+#AVISO, USE PONTO PARA DEFINIR OS VALORES
+looting:
+  enabled: false
+  nivel:
+    1:
+      min: 6.32
+      max: 12.65
+      multiplier: 2
+    2:
+      min: 8.41
+      max: 16.82
+      multiplier: 2
+    3:
+      min: 11.19
+      max: 22.37
+      multiplier: 2
+    4:
+      min: 14.88
+      max: 29.75
+      multiplier: 3
+    5:
+      min: 19.79
+      max: 39.57
+      multiplier: 3
+
 gui:
   upgrade:
     type: "gold_ingot"
@@ -131,6 +202,13 @@ upgrades:
     requirements:
       money: 5000000
       actions: 5000
+  11:
+    range: 8
+    speed: 80
+    requirements:
+      cash: 2000
+      money: 50000000
+      actions: 15000
     items:
       chestplate:
         type: LEATHER_CHESTPLATE

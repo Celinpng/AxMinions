@@ -547,23 +547,29 @@ class Minion(
     }
 
     override fun setLinkedChest(location: Location?) {
+        // Atualiza a localização do baú
         this.linkedChest = location?.clone()
-        if (linkedChest != null) {
-            Scheduler.get().executeAt(linkedChest) {
-                linkedInventory = (linkedChest?.block?.state as? Container)?.inventory
 
-                updateInventories()
+        // Configura o inventário vinculado de acordo com integrações ou vanilla
+        linkedInventory = linkedChest?.let { loc ->
+            AxMinionsPlugin.integrations.getSuitableStorageIntegration(loc)?.let { integration ->
+                val storageContents = integration.getStorageContents(loc)
+                if (storageContents != null) {
+                    val adjustedSize = getStorageSize(loc) // Ajusta o tamanho do inventário
+                    Bukkit.createInventory(null, adjustedSize).apply {
+                        storageContents.forEachIndexed { index, itemStack -> setItem(index, itemStack) }
+                    }
+                } else null // Caso a integração não retorne conteúdo, retorna `null`
+            } ?: run {
+                (loc.block.state as? Container)?.inventory // Fallback para baús vanilla
             }
-        } else {
-            linkedInventory = null
         }
 
+        // Persiste alterações no minion
         AxMinionsPlugin.dataQueue.submit {
             AxMinionsPlugin.dataHandler.saveMinion(this)
         }
     }
-
-
 
     override fun getLinkedChest(): Location? {
         return this.linkedChest
@@ -607,16 +613,74 @@ class Minion(
     }
 
     override fun addToContainerOrDrop(itemStack: ItemStack) {
-        if (linkedInventory == null) {
-            AxMinionsPlugin.integrations.getStackerIntegration().dropItemAt(itemStack, itemStack.amount, location)
-            return
+        val linkedLocation = linkedChest
+        if (linkedLocation != null) {
+            val remainingItems = addItemToStorage(linkedLocation, itemStack)
+            if (remainingItems.isNullOrEmpty()) return // Retorna se o item foi armazenado com sucesso
         }
 
-        val remaining = linkedInventory?.addItem(itemStack)
+        // Caso não possa armazenar, dropar o item no local
+        AxMinionsPlugin.integrations.getStackerIntegration().dropItemAt(itemStack, itemStack.amount, location)
+    }
 
-        remaining?.fastFor { _, u ->
-            AxMinionsPlugin.integrations.getStackerIntegration().dropItemAt(u, u.amount, location)
+    private fun getStorageContents(location: Location): List<ItemStack>? {
+        return AxMinionsPlugin.integrations.getSuitableStorageIntegration(location)
+            ?.getStorageContents(location)
+            ?: (location.block.state as? Container)?.inventory?.contents?.toList()
+    }
+
+    private fun getStorageSize(location: Location): Int {
+        val integration = AxMinionsPlugin.integrations.getSuitableStorageIntegration(location)
+        val storageContentsSize = integration?.getStorageContents(location)?.size
+
+        storageContentsSize?.let {
+            // Calcula o número de linhas disponíveis, excluindo a linha de navegação
+            val totalRows = it / 9
+            val usableRows = (totalRows - 1).coerceAtLeast(0) // Garante que tenha pelo menos 0 linhas utilizáveis
+            return (usableRows * 9).coerceIn(9, 54) // Força múltiplos de 9 dentro do limite permitido
         }
+
+        // Caso não exista integração, usa contêiner vanilla como fallback
+        val container = location.block.state as? Container
+        return (container?.inventory?.size ?: 27).coerceIn(9, 54) // Padrão: 27 slots (3 linhas)
+    }
+
+
+    private fun removeItemFromStorage(location: Location, items: List<ItemStack>): Boolean {
+        // Obtém o contêiner no local especificado
+        val container = location.block.state as? Container ?: run {
+            AxMinionsPlugin.INSTANCE.logger.warning("O bloco no local não é um contêiner. Local: $location.")
+            return false
+        }
+
+        AxMinionsPlugin.INSTANCE.logger.info("Tentando remover itens do baú padrão (vanilla)...")
+        return try {
+            // Tenta remover cada item do inventário
+            items.forEach { item ->
+                val removedItem = container.inventory.removeItem(item)
+                if (removedItem.isNotEmpty()) {
+                    AxMinionsPlugin.INSTANCE.logger.warning("Não foi possível remover o item: ${item.type}. Itens restantes: ${removedItem.size}.")
+                }
+            }
+            AxMinionsPlugin.INSTANCE.logger.info("Itens removidos do baú padrão com sucesso.")
+            true
+        } catch (e: Exception) {
+            AxMinionsPlugin.INSTANCE.logger.severe("Erro ao remover itens do baú padrão: ${e.message}")
+            false
+        }
+    }
+
+    private fun addItemToStorage(location: Location, itemStack: ItemStack): HashMap<Int, ItemStack>? {
+        // Verifica integração com o armazenamento avançado
+        val integration = AxMinionsPlugin.integrations.getSuitableStorageIntegration(location)
+        if (integration != null) {
+            val remaining = integration.addItem(location, listOf(itemStack))
+            return if (remaining.isEmpty()) null else hashMapOf(0 to itemStack) // Retorna os itens restantes
+        }
+
+        // Fallback para baú padrão (vanilla)
+        val containerInventory = (location.block.state as? Container)?.inventory
+        return containerInventory?.addItem(itemStack)
     }
 
     override fun addWithRemaining(itemStack: ItemStack): HashMap<Int, ItemStack>? {
@@ -703,71 +767,69 @@ class Minion(
 
 
     override fun damageTool(amount: Int) {
-        if (!Config.USE_DURABILITY()) return
-        val tool = tool ?: return
-        val toolMeta = toolMeta as? Damageable ?: return
+        // Verifica configurações e se a ferramenta suporta dano
+        if (!Config.USE_DURABILITY() || tool == null || toolMeta !is Damageable) return
 
-        if (!tool.type.isAir && unbreakable) {
+        val damageableMeta = toolMeta as Damageable
+
+        // Ignora itens inquebráveis ou do tipo "Air"
+        if (!tool!!.type.isAir && (unbreakable || damageableMeta.isUnbreakable)) return
+
+        // Calcula o nível do encantamento "Unbreaking" (Durabilidade)
+        val durabilityEnchantLevel = damageableMeta.getEnchantLevel(Enchantment.DURABILITY)
+
+        // Mecânica para calcular chance baseada no encantamento
+        val effectiveDamage = if (durabilityEnchantLevel > 0) {
+            // Chance de ignorar dano com base no nível do encantamento
+            val chance = 1.0 / (durabilityEnchantLevel + 1) // Ex: Unbreaking I = 50%, Unbreaking II = 33%
+            (0 until amount).count { Math.random() > chance } // Conta quantas vezes o dano é aplicado
+        } else amount
+
+        // Se não houver dano efetivo, encerra o processo
+        if (effectiveDamage == 0) return
+
+        // Calcula a durabilidade restante
+        val remainingDurability = tool!!.type.maxDurability - damageableMeta.damage
+
+        // Se ainda há durabilidade suficiente, aplica o dano
+        if (remainingDurability > effectiveDamage) {
+            applyDamageToTool(damageableMeta, effectiveDamage)
             return
         }
 
-        if (toolMeta.isUnbreakable) {
-            return
-        }
+        // Caso durabilidade termine, lida com quebra da ferramenta
+        handlePullItem()
+    }
 
-        val maxDurability = tool.type.maxDurability
-        val damage = toolMeta.damage
-        val remaining = maxDurability - damage
+    // Aplica dano à ferramenta e atualiza inventários
+    private fun applyDamageToTool(damageableMeta: Damageable, amount: Int) {
+        damageableMeta.damage += amount
+        tool!!.itemMeta = damageableMeta
+        updateInventories()
+    }
 
-        if (Math.random() > 1f / (toolMeta.getEnchantLevel(Enchantment.DURABILITY) + 1)) return
+    // Método auxiliar para lidar com a quebra da ferramenta
+    private fun handlePullItem() {
+        if (Config.CAN_BREAK_TOOLS() && Config.PULL_FROM_CHEST()) {
+            // Busca e tenta equipar nova ferramenta
+            val newTool = pullFromChest()
+            linkedInventory?.addItem(tool!!)
+            setTool(newTool)
 
-        if (remaining > amount) {
-            // We can damage the tool
-            toolMeta.damage += amount
-            tool.itemMeta = toolMeta
-            updateInventories()
-            return
+            // Valida se a nova ferramenta é utilizável
+            if (isToolValid(newTool)) return
         } else {
-            // Tool is breaking
-            if (Config.CAN_BREAK_TOOLS()) {
-                if (Config.PULL_FROM_CHEST()) {
-                    val item = pullFromChest()
-                    linkedInventory?.addItem(tool)
-                    setTool(item)
-
-                    if (!tool.type.isAir && notDurable.contains(tool.type)) {
-                        return
-                    }
-
-                    if (!item.type.isAir && (item.itemMeta as? Damageable
-                            ?: return).damage + 1 > item.type.maxDurability
-                    ) {
-                        return
-                    }
-                } else {
-                    setTool(ItemStack(Material.AIR))
-                    return
-                }
-            } else {
-                if (Config.PULL_FROM_CHEST()) {
-                    val item = pullFromChest()
-                    linkedInventory?.addItem(tool)
-                    setTool(item)
-
-                    if (!tool.type.isAir && notDurable.contains(tool.type)) {
-                        return
-                    }
-
-                    if (!item.type.isAir && (item.itemMeta as? Damageable
-                            ?: return).damage + 1 > item.type.maxDurability
-                    ) {
-                        return
-                    }
-                }
-
-                return
-            }
+            // Remove ferramenta sem substituí-la
+            setTool(ItemStack(Material.AIR))
         }
+
+        // Som de quebra da ferramenta
+        location.world?.playSound(location, "entity.item.break", 2.0f, 1.0f)
+    }
+
+    // Valida se uma ferramenta é utilizável (não air-type e apropriada para uso)
+    private fun isToolValid(item: ItemStack): Boolean {
+        return !item.type.isAir && !notDurable.contains(item.type)
     }
 
     override fun canUseTool(): Boolean {
@@ -839,19 +901,56 @@ class Minion(
     }
 
     private fun pullFromChest(): ItemStack {
-        val allowedTools = arrayListOf<Material>()
-        getType().getConfig().getStringList("tool.material").fastFor {
-            allowedTools.add(Material.matchMaterial(it) ?: return@fastFor)
+        val linkedLocation = linkedChest ?: return ItemStack(Material.AIR)
+        AxMinionsPlugin.INSTANCE.logger.info("Tentando puxar item do baú em $linkedLocation")
+
+        // Obtém a integração adequada para o local
+        val integration = AxMinionsPlugin.integrations.getSuitableStorageIntegration(linkedLocation)
+        AxMinionsPlugin.INSTANCE.logger.info("Integração encontrada: ${integration?.javaClass?.simpleName ?: "Nenhuma"}")
+
+        // Obtém o conteúdo do armazenamento
+        val storageContents = integration?.getStorageContents(linkedLocation)
+            ?: (linkedLocation.block.state as? Container)?.inventory?.contents?.toList()
+            ?: return ItemStack(Material.AIR)
+
+        val allowedTools = getType().getConfig().getStringList("tool.material")
+            .mapNotNull(Material::matchMaterial)
+            .toSet()
+
+        // Encontra o primeiro item válido
+        val item = storageContents.firstOrNull { it?.type in allowedTools } ?: return ItemStack(Material.AIR)
+        AxMinionsPlugin.INSTANCE.logger.info("Item encontrado: ${item.type}")
+
+        // Clona o item antes de removê-lo do baú
+        val clonedItem = item.clone()
+
+        // Tenta remover o item usando a integração, se disponível
+        val removed = if (integration != null) {
+            AxMinionsPlugin.INSTANCE.logger.info("Tentando remover item pela integração...")
+            try {
+                val remainingItems = integration.removeItem(linkedLocation, listOf(item))
+                val wasRemoved = remainingItems.isEmpty() || remainingItems[0]?.amount != item.amount
+                AxMinionsPlugin.INSTANCE.logger.info("Remoção pela integração: ${if (wasRemoved) "sucesso" else "falha"}")
+                wasRemoved
+            } catch (e: Exception) {
+                AxMinionsPlugin.INSTANCE.logger.severe("Erro ao remover item pela integração: ${e.message}")
+                false
+            }
+        } else {
+            // Se não houver integração, tenta remover do baú vanilla
+            AxMinionsPlugin.INSTANCE.logger.info("Nenhuma integração encontrada, tentando remover do baú vanilla...")
+            try {
+                val wasRemoved = removeItemFromStorage(linkedLocation, listOf(item))
+                AxMinionsPlugin.INSTANCE.logger.info("Remoção do baú vanilla: ${if (wasRemoved) "sucesso" else "falha"}")
+                wasRemoved
+            } catch (e: Exception) {
+                AxMinionsPlugin.INSTANCE.logger.severe("Erro ao remover item do baú vanilla: ${e.message}")
+                false
+            }
         }
 
-        linkedInventory?.contents?.fastFor {
-            if (it == null || it.type !in allowedTools) return@fastFor
-
-            linkedInventory?.remove(it)
-            return it
-        }
-
-        return ItemStack(Material.AIR)
+        // Retorna o item clonado se a remoção foi bem-sucedida
+        return if (removed) clonedItem else ItemStack(Material.AIR)
     }
 
     override fun isOwnerOnline(): Boolean {

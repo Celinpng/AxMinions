@@ -30,13 +30,14 @@ import com.artillexstudios.axminions.integrations.storage.AdvancedChestsIntegrat
 import com.artillexstudios.axminions.listeners.SuperiorSkyBlock2Listener
 import java.util.Locale
 import org.bukkit.Bukkit
+import org.bukkit.Location
 
 class Integrations : Integrations {
     private lateinit var stackerIntegration: StackerIntegration
     private var pricesIntegration: PricesIntegration? = null
     private var economyIntegration: EconomyIntegration? = null
     private var islandIntegration: IslandIntegration? = null
-    private var storageIntegration: StorageIntegration? = null
+    private val storageIntegrations = mutableListOf<StorageIntegration>()
     private val protectionIntegrations = com.artillexstudios.axminions.integrations.protection.ProtectionIntegrations()
     internal var kGeneratorsIntegration = false
     internal var itemsAdderIntegration = false
@@ -58,8 +59,13 @@ class Integrations : Integrations {
         return islandIntegration
     }
 
-    override fun getStorageIntegration(): StorageIntegration? {
-        return storageIntegration
+    override fun getStorageIntegrations(): List<StorageIntegration> {
+        return storageIntegrations
+    }
+
+    // Para obter uma integração específica com base em uma condição:
+    fun getSuitableStorageIntegration(location: Location): StorageIntegration? {
+        return storageIntegrations.firstOrNull { it.isStorage(location) }
     }
 
     override fun getProtectionIntegration(): ProtectionIntegrations {
@@ -242,7 +248,7 @@ class Integrations : Integrations {
             }
 
             is StorageIntegration -> {
-                storageIntegration = integration
+                storageIntegrations.add(integration) // Adiciona a nova integração
             }
 
             else -> {

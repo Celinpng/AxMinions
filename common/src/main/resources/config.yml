@@ -67,6 +67,8 @@ hooks:
   stacker: "none"
   # Supported economy providers: Vault, PlayerPoints, custom
   economy: "Vault"
+  # Suportar cash
+  cash: "PlayerPoints"
   # Supported prices providers: ShopGUIPlus, Essentials, EconomyShopGUI, CMI, zShop, custom
   #zShop is broken atm. do not use Seller
   prices: "ShopGUIPlus"
@@ -95,8 +97,19 @@ gui:
     filler:
       type: "black_stained_glass_pane"
       name: ""
-    rotate:
+      #end
+    method:
       type: "ender_eye"
+      name: "<#33FF33><b>method"
+      lore:
+        - ""
+        - " <gray>- <white>Current: <#33FF33><method>"
+        - ""
+        - "<#33FF33><b>(!)</b> Click here to change how your minion works!"
+      slot: 4
+      #end
+    rotate:
+      type: "compass"
       name: "<#33FF33><b>Rotate"
       lore:
         - ""
@@ -104,6 +117,7 @@ gui:
         - ""
         - "<#33FF33><b>(!)</b> Click here to rotate your minion!"
       slot: 10
+      #end
     link:
       type: "chest"
       name: "<#FFCC00><b>Link to container"
@@ -113,9 +127,11 @@ gui:
         - ""
         - "<#FFCC00><b>(!)</b> Click here to link your minion to a container!"
       slot: 11
+      #end
     item:
       type: "air"
       slot: 13
+      #end
     charge:
       type: "lava_bucket"
       name: "<#FB8E08><b>Charge"

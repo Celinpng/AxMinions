@@ -14,5 +14,6 @@ class ZShopIntegration : PricesIntegration {
     }
 
     override fun register() {
+
     }
 }
