@@ -100,16 +100,16 @@ gui:
       #end
     method:
       type: "ender_eye"
-      name: "<#33FF33><b>method"
+      name: "<#33FF33><b>Rotate"
       lore:
         - ""
-        - " <gray>- <white>Current: <#33FF33><method>"
+        - " <gray>- <white>Current: <#33FF33><direction>"
         - ""
-        - "<#33FF33><b>(!)</b> Click here to change how your minion works!"
-      slot: 4
+        - "<#33FF33><b>(!)</b> Click here to rotate your minion!"
+      slot: 10
       #end
     rotate:
-      type: "compass"
+      type: "ender_eye"
       name: "<#33FF33><b>Rotate"
       lore:
         - ""
