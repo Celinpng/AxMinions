@@ -157,7 +157,6 @@ allprojects {
         implementation("org.bstats:bstats-bukkit:3.0.2")
         implementation('com.github.Maxlego08:zMenu-API:1.0.3.7')
         implementation('com.github.Maxlego08:zShop-API:3.0.5')
-
     }
 }
 
